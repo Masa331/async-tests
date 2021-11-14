@@ -1,0 +1,18 @@
+chromium\
+ --no-sandbox\
+ --interpreter-none\
+ --headless\
+ --disable-gpu\
+ --disable-extensions\
+ --disable-background-networking\
+ --disable-sync\
+ --metricts-recording-only\
+ --disable-default-apps\
+ --no-first-run\
+ --mute-audio\
+ --hide-scrollbars\
+ --disable-breakpad\
+ --disable-crash-reporter\
+ --disable-file-system\
+ --remote-debugging-port=9222\
+ --remote-debugging-address=0.0.0.0
