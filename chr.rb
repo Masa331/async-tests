@@ -24,7 +24,8 @@ class CDP < Async::WebSocket::Connection
   end
 
   def create_context
-    command('Target.createBrowserContext', arguments: { disposeOnDetach: true })
+    # command('Target.createBrowserContext', arguments: { disposeOnDetach: true })
+    command('Target.createBrowserContext', arguments: { disposeOnDetach: false })
   end
 
   def create_target(url:, context_id:)
@@ -72,6 +73,23 @@ class CDP < Async::WebSocket::Connection
     command('Page.printToPDF', session_id: session_id, arguments: arguments)
   end
 
+  def network_reporting(session_id:)
+    # command('Network.enableReportingApi', arguments: { enable: true }, session_id: session_id)
+    command('Network.enableReportingApi', arguments: { enable: true })
+  end
+
+  def network_enable(session_id:)
+    # command('Network.enableReportingApi', arguments: { enable: true }, session_id: session_id)
+    command('Network.enable', session_id: session_id)
+  end
+  def page_enable(session_id:)
+    command('Page.enable', session_id: session_id)
+  end
+
+  def evaluate(session_id:, expression:)
+    command('Runtime.evaluate', session_id: session_id, arguments: { expression: expression })
+  end
+
   private
 
   def command(method, arguments: {}, session_id: nil)
@@ -82,6 +100,8 @@ class CDP < Async::WebSocket::Connection
     flush
 
     while message = read
+      # puts message
+
       if message[:error]
         puts "Error: #{message} on command: #{method}, with arguments: #{arguments} and session id: #{session_id}"
       end
@@ -97,6 +117,18 @@ class CDP < Async::WebSocket::Connection
   end
 end
 
+html = <<~HTML
+<div>
+  <div>
+    <img src="https://cdn.myshoptet.com/usr/imagineanything.myshoptet.com/user/logos/shoptet-logo.png" />
+  </div>
+  <div>
+    ahoj!
+  </div>
+</div>
+HTML
+html = html * 25
+
 Async do |task|
   url = 'http://localhost:9222/json/version'
   url = URI.join(url.to_s)
@@ -110,8 +142,30 @@ Async do |task|
     session_id = conn.attach(target_id: target_id).dig(:result, :sessionId)
     frame_id = conn.frame_tree(session_id: session_id).dig(:result, :frameTree, :frame, :id)
 
-    conn.set_content(session_id: session_id, frame_id: frame_id, html: '<p>ahoj!</p>')
+    # conn.page_enable(session_id: session_id)
+    # conn.network_enable(session_id: session_id)
+    # conn.enable_reporting(session_id: session_id)
+
+    conn.set_content(session_id: session_id, frame_id: frame_id, html: html)
+
+    js = "Array.from(document.querySelectorAll('img')).every(i => i.complete && i.naturalHeight > 0)"
+    loop do
+      print '.'
+      sleep 0.1
+      result = conn.evaluate(expression: js, session_id: session_id).dig(:result, :result, :value);
+
+      if result# && result2 > 0
+        print "\n"
+        break
+      end
+    end
+
     @result = result = conn.print_pdf(session_id: session_id).dig(:result, :data)
+
+
+    # conn.navigate(session_id: session_id, url: 'https://www.seznam.cz')
+    # conn.set_content(session_id: session_id, frame_id: frame_id, html: '<p>ahoj!</p>')
+    # @result = result = conn.print_pdf(session_id: session_id).dig(:result, :data)
 
     conn.stop_loading(session_id: session_id)
     conn.detach(session_id: session_id)
@@ -123,3 +177,4 @@ Async do |task|
 end
 
 File.open('foo.pdf', 'wb') { _1.write(Base64.decode64(@result)) }
+# File.open('index.html', 'wb') { _1.write(html) }
